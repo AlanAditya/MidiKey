@@ -130,7 +130,7 @@ function GrantCard({ g }: { g: GrantRecord }) {
           {g.backend === 'ipfs' && <span className="pill info"><HardDrive size={12} /> IPFS</span>}
         </div>
         <div className="meta">
-          <span><Clock size={14} /> {live ? <>Self-destructs in <b className="timer" style={{ color: left < 3600e3 ? 'var(--warn)' : 'var(--text)' }}>{fmtDuration(left)}</b></> : <>Ended {fmtDateTime(g.status === 'revoked' ? (g.log?.find((e) => e.event === 'revoked')?.t ?? g.expiresAt) : g.expiresAt)}</>}</span>
+          <span><Clock size={14} /> {live ? <>Self-destructs in <b className="timer" style={{ color: left < 3600e3 ? 'var(--warn)' : 'var(--text)' }}>{fmtDuration(left)}</b></> : <>Ended {fmtDateTime(g.status === 'revoked' ? (g.log?.find((e) => e.event === 'revoked' || e.event === 'missing-on-relay')?.t ?? g.expiresAt) : g.expiresAt)}</>}</span>
           <span><Eye size={14} /> {g.views} open{g.views === 1 ? '' : 's'}{g.maxViews ? ` of ${g.maxViews}` : ''}{g.lastViewedAt ? ` · last ${fmtDateTime(g.lastViewedAt)}` : ''}</span>
           <span>{g.recordIds.length} record{g.recordIds.length === 1 ? '' : 's'} · {g.shardCount} encrypted shard{g.shardCount === 1 ? '' : 's'} ({formatBytes(g.bytes)})</span>
           <span>Created {fmtDateTime(g.createdAt)}</span>
@@ -152,7 +152,7 @@ function GrantCard({ g }: { g: GrantRecord }) {
         {log && (
           <ul className="timeline" aria-label="Access log">
             {[...(g.log ?? [])].reverse().map((e, i) => (
-              <li key={i}><time>{new Date(e.t).toLocaleString()}</time><span>{e.event === 'opened' ? '👁 Provider opened the records' : e.event === 'created' ? '🔐 Link created' : e.event === 'revoked' ? '⛔ You revoked access — key destroyed' : e.event === 'expired' ? '⏱ Link self-destructed (key destroyed)' : e.event === 'exhausted' ? '🔥 View limit reached — key destroyed' : e.event}</span></li>
+              <li key={i}><time>{new Date(e.t).toLocaleString()}</time><span>{e.event === 'opened' ? '👁 Provider opened the records' : e.event === 'created' ? '🔐 Link created' : e.event === 'revoked' ? '⛔ You revoked access — key destroyed' : e.event === 'missing-on-relay' ? '⚠ The relay no longer has this link, so it can\'t be opened' : e.event === 'expired' ? '⏱ Link self-destructed (key destroyed)' : e.event === 'exhausted' ? '🔥 View limit reached — key destroyed' : e.event}</span></li>
             ))}
           </ul>
         )}
@@ -163,8 +163,8 @@ function GrantCard({ g }: { g: GrantRecord }) {
             if (!confirm(`Revoke access for “${g.label}”? The relay will destroy its key half and the link stops working immediately.`)) return;
             setBusy(true);
             try {
-              await v.revokeGrant(g.id);
-              toast('Access revoked. The key half was destroyed on the relay.');
+              const r = await v.revokeGrant(g.id);
+              toast(r.alreadyGone ? 'The relay no longer had this link, so it was already unopenable. Marked as revoked.' : 'Access revoked. The key half was destroyed on the relay.');
             } catch (e) {
               toast((e as Error).message, 'bad');
             } finally {

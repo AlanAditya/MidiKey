@@ -4,7 +4,7 @@ import { decodeRecoveryKey, encodeRecoveryKey, type Identity } from '../lib/iden
 import { randomBytes } from '../lib/bytes';
 import * as vault from '../lib/vault';
 import { refreshGrants as refreshGrantsRemote, revokeShare } from '../lib/share';
-import { DEFAULT_SETTINGS, type GrantRecord, type HealthRecord, type Settings } from '../lib/types';
+import { DEFAULT_SETTINGS, type ChatTurn, type GrantRecord, type HealthRecord, type Settings } from '../lib/types';
 
 export type Status = 'loading' | 'none' | 'locked' | 'unlocked';
 
@@ -13,6 +13,9 @@ interface Ctx {
   identity: Identity | null;
   records: HealthRecord[];
   grants: GrantRecord[];
+  /** Copilot conversation — lives here (not in the page) so it survives navigation, reloads and lock/unlock. */
+  chat: ChatTurn[];
+  updateChat(fn: (c: ChatTurn[]) => ChatTurn[]): Promise<void>;
   settings: Settings;
   createVault(passphrase: string): Promise<{ recoveryKey: string }>;
   completeSetup(): Promise<void>;
@@ -24,7 +27,7 @@ interface Ctx {
   updateSettings(patch: Partial<Settings>): Promise<void>;
   addGrant(g: GrantRecord): Promise<void>;
   refreshGrants(): Promise<void>;
-  revokeGrant(id: string): Promise<void>;
+  revokeGrant(id: string): Promise<{ alreadyGone: boolean }>;
   removeGrant(id: string): Promise<void>;
   exportBackup(): Promise<Blob>;
   importBackup(f: File): Promise<number>;
@@ -43,6 +46,9 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [records, setRecords] = useState<HealthRecord[]>([]);
   const [grants, setGrants] = useState<GrantRecord[]>([]);
+  const [chat, setChat] = useState<ChatTurn[]>([]);
+  const chatRef = useRef<ChatTurn[]>([]);
+  chatRef.current = chat;
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const pending = useRef<Identity | null>(null);
   const lastActive = useRef(Date.now());
@@ -64,9 +70,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   }, [settings.theme, status]);
 
   const load = useCallback(async (id: Identity) => {
-    const [r, g, s] = await Promise.all([vault.listRecords(id), vault.listGrants(id), vault.loadSettings(id)]);
+    const [r, g, s, c] = await Promise.all([vault.listRecords(id), vault.listGrants(id), vault.loadSettings(id), vault.loadChat(id)]);
     setRecords(r);
     setGrants(g);
+    setChat(c);
     setSettings(s);
     setIdentity(id);
     lastActive.current = Date.now();
@@ -77,6 +84,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     setIdentity(null);
     setRecords([]);
     setGrants([]);
+    setChat([]); // wiped from memory on lock; the encrypted copy stays in the vault
     pending.current = null;
     setStatus('locked');
   }, []);
@@ -109,6 +117,13 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       records,
       grants,
       settings,
+      chat,
+      async updateChat(fn) {
+        const next = fn(chatRef.current);
+        chatRef.current = next;
+        setChat(next);
+        await vault.saveChat(need(), next);
+      },
       async createVault(passphrase) {
         const seed = randomBytes(32);
         pending.current = await createKeystore(seed, passphrase);
@@ -159,10 +174,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       },
       async revokeGrant(gid) {
         const id = need();
-        await revokeShare(id, gid, settings);
+        const result = await revokeShare(id, gid, settings);
         const g = (await vault.listGrants(id)).find((x) => x.id === gid);
-        if (g) await vault.saveGrant(id, { ...g, status: 'revoked', log: [...(g.log ?? []), { t: Date.now(), event: 'revoked' }] });
+        if (g) await vault.saveGrant(id, { ...g, status: 'revoked', log: [...(g.log ?? []), { t: Date.now(), event: result.alreadyGone ? 'missing-on-relay' : 'revoked' }] });
         setGrants(await vault.listGrants(id));
+        return result;
       },
       async removeGrant(gid) {
         await vault.deleteGrant(need(), gid);
@@ -183,7 +199,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [status, identity, records, grants, settings, load, lock],
+    [status, identity, records, grants, settings, chat, load, lock],
   );
 
   return <VaultCtx.Provider value={value}>{children}</VaultCtx.Provider>;

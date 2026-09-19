@@ -72,6 +72,12 @@ export interface GrantRecord {
   log?: { t: number; event: string }[];
 }
 
+/** One Copilot exchange. Only the question is stored; the answer is re-derived from the current records. */
+export interface ChatTurn {
+  q: string;
+  polished?: string;
+}
+
 export interface Settings {
   privacyMode: PrivacyMode;
   identifiers: string[]; // names/phones/emails the user wants always scrubbed

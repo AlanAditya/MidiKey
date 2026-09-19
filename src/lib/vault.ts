@@ -7,7 +7,7 @@ import { createStore, get, set, del, entries, clear } from 'idb-keyval';
 import { fromB64Url, fromUtf8, toB64Url, utf8 } from './bytes';
 import { aesDecrypt, aesEncrypt } from './crypto';
 import type { Identity } from './identity';
-import { DEFAULT_SETTINGS, type GrantRecord, type HealthRecord, type Settings } from './types';
+import { DEFAULT_SETTINGS, type ChatTurn, type GrantRecord, type HealthRecord, type Settings } from './types';
 
 const store = createStore('medikey-vault', 'kv');
 
@@ -56,6 +56,9 @@ export async function loadSettings(id: Identity): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...s, storage: { ...DEFAULT_SETTINGS.storage, ...s?.storage } };
 }
 export const saveSettings = (id: Identity, s: Settings) => putEnc(id, 'cfg', 'settings', s);
+
+export const loadChat = async (id: Identity): Promise<ChatTurn[]> => (await getEnc<ChatTurn[]>(id, 'cfg', 'copilot-chat')) ?? [];
+export const saveChat = (id: Identity, chat: ChatTurn[]) => putEnc(id, 'cfg', 'copilot-chat', chat);
 
 // ----- encrypted backup (.medikey file) -----
 

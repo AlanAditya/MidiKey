@@ -120,6 +120,20 @@ describe('zero-trust share protocol', () => {
     expect((await refreshGrants(a, [g], settings))[0].status).toBe('active');
   });
 
+  it('relay that lost the grant: revoke succeeds as "already gone", and the phantom grant shows as ended', async () => {
+    const id = await deriveIdentity(randomBytes(32));
+    // a grant the vault remembers as active, but the relay has never heard of (e.g. relay data was reset)
+    const ghost = { id: 'ghostGrantIdxxxxxxxxxx', label: 'dr chen', recipientType: 'doctor' as const, createdAt: Date.now(), expiresAt: Date.now() + 3600e3, maxViews: null, recordIds: [], link: '', passcode: false, boundToProvider: false, backend: 'relay' as const, shardCount: 1, bytes: 1, status: 'active' as const, views: 0, log: [] };
+    // used to throw "unknown grant" and leave the link stuck active forever
+    await expect(revokeShare(id, ghost.id, settings)).resolves.toEqual({ alreadyGone: true });
+    const [seen] = await refreshGrants(id, [ghost], settings);
+    expect(seen.status).toBe('revoked');
+    expect(seen.log?.at(-1)?.event).toBe('missing-on-relay');
+    // a real grant is still revoked normally
+    const g = await createShare(id, [rec(1)], opts, settings);
+    await expect(revokeShare(id, g.id, settings)).resolves.toEqual({ alreadyGone: false });
+  });
+
   it('time-bound: expired grants refuse to release the key', async () => {
     const id = await deriveIdentity(randomBytes(32));
     const g = await createShare(id, [rec(1)], { ...opts, ttlMs: 1200 }, settings);

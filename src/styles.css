@@ -457,3 +457,11 @@ dialog.modal { -webkit-backdrop-filter: blur(36px) saturate(200%); backdrop-filt
 @media (prefers-reduced-transparency: reduce) {
   .card, .sidebar, .composer, .provider-bar, .toast, dialog.modal, .nav { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* ---------- provider dashboard ---------- */
+.dash { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+@media (max-width: 960px) { .dash { grid-template-columns: minmax(0, 1fr); } }
+.patient { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 16px 20px; }
+.patient.dead { opacity: 0.62; }
+.patient .who { flex: 1 1 280px; min-width: 0; }
+.patient .who .meta { margin-top: 6px; }

@@ -208,7 +208,10 @@ export async function refreshGrants(identity: Identity, grants: GrantRecord[], s
     const i = info[g.id];
     if (!i) return g;
     if (i.status === 'unknown') {
-      // relay has forgotten it (retention window elapsed) — derive from the clock
+      // A still-"active" grant the relay has no record of can't be opened by anyone (no key half),
+      // so show it as ended instead of a phantom live link that can't even be revoked.
+      if (g.status === 'active' && g.expiresAt > Date.now()) return { ...g, status: 'revoked', log: [...(g.log ?? []), { t: Date.now(), event: 'missing-on-relay' }] };
+      // otherwise the relay simply forgot it after its retention window — derive from the clock
       return { ...g, status: g.status === 'revoked' ? 'revoked' : g.expiresAt <= Date.now() ? 'expired' : g.status };
     }
     const status = i.status === 'exhausted' ? 'expired' : i.status;
@@ -217,8 +220,19 @@ export async function refreshGrants(identity: Identity, grants: GrantRecord[], s
   });
 }
 
-export async function revokeShare(identity: Identity, grantId: string, settings: Settings) {
-  await makeRelay(relayBase(settings.storage.relayUrl)).revoke(identity, grantId);
+/**
+ * Revoke on the relay. If the relay has no record of the grant (its data was reset, or it never
+ * arrived) the link cannot be opened anyway — the key half doesn't exist — so that counts as
+ * revoked rather than an error that leaves the grant stuck "active" forever.
+ */
+export async function revokeShare(identity: Identity, grantId: string, settings: Settings): Promise<{ alreadyGone: boolean }> {
+  try {
+    await makeRelay(relayBase(settings.storage.relayUrl)).revoke(identity, grantId);
+    return { alreadyGone: false };
+  } catch (e) {
+    if (e instanceof RelayError && e.status === 404) return { alreadyGone: true };
+    throw e;
+  }
 }
 
 // ---------------------------------------------------------------- provider: opening a share

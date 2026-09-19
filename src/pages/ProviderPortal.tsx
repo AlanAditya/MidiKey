@@ -6,6 +6,7 @@ import { VitalsView } from './Vitals';
 import { decodeSecret, NeedsPasscode, NeedsProviderKey, openShare, WrongCredential, type LinkSecret, type OpenedShare } from '../lib/share';
 import { makeRelay, relayBase, RelayError } from '../lib/relay';
 import { loadProviderKey } from '../lib/providerKey';
+import { addLinks, loadPatients, patchPatient, savePatients } from '../lib/providerPatients';
 import { RECORD_KINDS } from '../lib/types';
 
 type Phase = 'gate' | 'opening' | 'open' | 'dead';
@@ -20,6 +21,8 @@ export default function ProviderPortal() {
   const [dead, setDead] = useState<{ kind: 'expired' | 'revoked' | 'exhausted' | 'unknown'; msg: string } | null>(null);
   const [preflight, setPreflight] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
+  const alreadySaved = useMemo(() => loadPatients().some((p) => p.id === id), [id]);
+  const [save, setSave] = useState(true);
   const providerKey = loadProviderKey();
 
   const link = useMemo<{ s: LinkSecret | null; bad: string }>(() => {
@@ -47,12 +50,15 @@ export default function ProviderPortal() {
     try {
       const s = await openShare(id, secret, { passcode: passcode || undefined, providerPriv: providerKey?.priv });
       setSkew(s.serverTime - Date.now());
+      // Dashboard bookkeeping: link + non-medical metadata only — never the decrypted records.
+      if (save && !alreadySaved) savePatients(addLinks(loadPatients(), `#/p/${id}/${secret}`).list);
+      patchPatient(id, { patientFp: s.ownerFingerprint, recordCount: s.bundle.records.length, expiresAt: s.expiresAt, lastOpenedAt: Date.now() });
       setShare(s);
       setPhase('open');
     } catch (e) {
       setPhase('gate');
       if (e instanceof NeedsPasscode) setErr('Enter the passcode the patient gave you.');
-      else if (e instanceof NeedsProviderKey) setErr('This link is bound to a clinician key. Generate or restore your key in the provider portal first.');
+      else if (e instanceof NeedsProviderKey) setErr('This link is bound to a clinician key. Generate your key on the provider dashboard first.');
       else if (e instanceof WrongCredential) setErr((e as Error).message);
       else if (e instanceof RelayError && ['expired', 'revoked', 'exhausted', 'unknown'].includes(e.code ?? '')) setDead({ kind: e.code as 'expired', msg: e.message });
       else if (e instanceof RelayError && e.status === 404) setDead({ kind: 'unknown', msg: e.message });
@@ -68,7 +74,7 @@ export default function ProviderPortal() {
           <div className="big-ico"><ShieldCheck size={32} /></div>
           <h1 style={{ fontSize: '1.5rem' }}>Session closed</h1>
           <p className="muted">The decrypted records were wiped from this tab's memory. Re-opening the link may count as another view.</p>
-          <Link className="btn" to="/provider">Provider portal</Link>
+          <Link className="btn primary" to="/provider">Back to my patients</Link>
         </div>
       </Centered>
     );
@@ -95,10 +101,13 @@ export default function ProviderPortal() {
         {s.m === 'bound' && (
           <div className={`notice ${providerKey ? 'ok' : 'warn'}`}>
             <ShieldCheck size={18} />
-            <div>{providerKey ? <>Bound to a clinician key. Using your key{providerKey.name ? <> (<b>{providerKey.name}</b>)</> : ''}.</> : <>This link is bound to a specific clinician key. <Link to="/provider">Open the provider portal</Link> to use your key.</>}</div>
+            <div>{providerKey ? <>Bound to a clinician key. Using your key{providerKey.name ? <> (<b>{providerKey.name}</b>)</> : ''}.</> : <>This link is bound to a specific clinician key. <Link to="/provider">Open your dashboard</Link> to create your key.</>}</div>
           </div>
         )}
         {err && <div className="notice bad" role="alert"><AlertTriangle size={18} /><div>{err}</div></div>}
+        {!alreadySaved && (
+          <label className="check small"><input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} /> <span>Save this patient to my dashboard <span className="muted">(link only — records are never saved)</span></span></label>
+        )}
         <button className="btn primary lg block" disabled={phase === 'opening' || (s.m === 'passcode' && !passcode)} onClick={open}>
           {phase === 'opening' ? <><Loader2 size={18} className="spin" /> Fetching &amp; decrypting…</> : <><LockKeyhole size={18} /> Decrypt &amp; open</>}
         </button>
@@ -106,7 +115,7 @@ export default function ProviderPortal() {
           <li>Opening is logged for the patient (time only — no identity, no IP).</li>
           <li>Access is read-only and ends when the patient's timer expires or they revoke it.</li>
         </ul>
-        <p className="center small" style={{ margin: 0 }}><Link to="/provider">Provider portal home</Link></p>
+        <p className="center small" style={{ margin: 0 }}><Link to="/provider">← My patients</Link></p>
       </div>
     </Centered>
   );
@@ -128,7 +137,7 @@ function DeadCard({ kind, title, body }: { kind: 'expired' | 'revoked' | 'exhaus
       <div className="big-ico bad"><map.I size={32} /></div>
       <h1 style={{ fontSize: '1.5rem' }}>{title ?? map.t}</h1>
       <p className="muted">{body ?? map.b}</p>
-      <Link className="btn" to="/provider">Provider portal</Link>
+      <Link className="btn" to="/provider">Back to my patients</Link>
     </div>
   );
 }
@@ -185,6 +194,7 @@ function Viewer({ share, skew, onClose }: { share: OpenedShare; skew: number; on
         <span className="grow" />
         <Countdown expiresAt={share.expiresAt} skew={skew} />
         {share.viewsLeft !== null && <span className="pill warn">{share.viewsLeft} open{share.viewsLeft === 1 ? '' : 's'} left</span>}
+        <Link className="btn sm" to="/provider">My patients</Link>
         <button className="btn sm" onClick={onClose}><X size={14} /> Close &amp; wipe</button>
       </div>
 
