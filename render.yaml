@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: medikey
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: node server/index.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATA_DIR
+        value: /app/data
+      - key: NODE_VERSION
+        value: "22"
+    disk:
+      name: medikey-data
+      mountPath: /app/data
+      sizeGB: 1

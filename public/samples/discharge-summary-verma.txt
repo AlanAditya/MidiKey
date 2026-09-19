@@ -1,0 +1,49 @@
+SUNRISE MULTISPECIALITY HOSPITAL
+14/2 MG Road, Indiranagar, Bengaluru, Karnataka 560038
+Tel: +91 80 4123 5566 | www.sunrisehospital.example.in
+
+DISCHARGE SUMMARY
+
+Patient Name : RAHUL VERMA                   UHID : SMH-2026-118843
+Age / Sex    : 58 Years / Male               IP No: IP/26/004417
+DOB          : 21 June 1968                  Admission Date: 11 August 2026
+Aadhaar No   : 4821 7730 1956               Discharge Date: 16 August 2026
+PAN          : BQRPV4412K
+Mobile       : +91 98450 12377
+Email        : rahul.verma68@examplemail.in
+Address      : Flat 402, Palm Meadows Apartments, 3rd Cross, HSR Layout, Bengaluru - 560102
+Insurance    : Star Health, Policy No: P/700100/01/2026/003318
+Emergency Contact: Sunita Verma (wife), +91 99000 45821
+Attending Physician: Dr. Priya Nair, MD (Cardiology)
+Referring Doctor: Dr. Arvind Rao
+
+DIAGNOSIS
+1. Acute coronary syndrome (NSTEMI), s/p PCI to LAD
+2. Hypertension
+3. Type 2 diabetes mellitus
+4. Dyslipidemia
+
+HISTORY
+Mr. Verma presented to the Emergency Department with chest pain radiating to the left arm for
+3 hours. Rahul Verma is a 58-year-old man with a 10-year history of hypertension and diabetes,
+on irregular treatment. ECG showed ST depression in V4-V6; troponin I was elevated at 2.8 ng/mL.
+
+HOSPITAL COURSE
+Coronary angiography on 12 August 2026 revealed 90% stenosis of the proximal LAD; a drug-eluting
+stent was deployed. Post-procedure course was uneventful. Echocardiogram: LVEF 45%, mild
+anterior wall hypokinesia. Blood pressure at discharge 128/82 mmHg, heart rate 72 bpm.
+
+DISCHARGE MEDICATIONS
+1. Aspirin 75 mg once daily
+2. Clopidogrel 75 mg once daily for 12 months
+3. Atorvastatin 40 mg at night
+4. Metoprolol succinate 50 mg once daily
+5. Ramipril 5 mg once daily
+6. Metformin 500 mg twice daily
+
+ADVICE
+Low-salt, low-fat diet. Avoid strenuous exertion for 4 weeks. Cardiac rehabilitation referral.
+Follow-up with Dr. Priya Nair on 30 August 2026. Call +91 80 4123 5566 for emergencies.
+
+Discharged by: Dr. Priya Nair
+Sunrise Multispeciality Hospital
